@@ -950,59 +950,80 @@ function setFilter(filter, btn) {
 }
 
 // ── Notion config ──────────────────────────────────────────
-const NOTION_TOKEN = 'ntn_g66139938652WUgauVzm3r4SPqYo0vybmZmJWtZE5sw1bl';
+const NOTION_TOKEN = 'ntn_b66139938652xv8d8SthcbEoIEcSmitsLd74k4g5dQ2ca9';
 const NOTION_DB_ID = '30b5346a5d2e8061ba0ad5487c0c1ac1';
 const NOTION_PROXY  = 'https://notion-proxy.vercel.app/api/notion'; // CORS proxy
 // ───────────────────────────────────────────────────────────
+
+async function getDataSourceId() {
+  // Step 1: Fetch the database to get the data_source_id (required by Notion API 2025-09-03)
+  const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(`https://api.notion.com/v1/databases/${NOTION_DB_ID}`), {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${NOTION_TOKEN}`,
+      'Notion-Version': '2025-09-03',
+    }
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to fetch database info');
+  // data_sources is an array; grab the first one
+  const sources = data.data_sources;
+  if (!sources || sources.length === 0) throw new Error('No data sources found on this database');
+  return sources[0].id;
+}
 
 async function submitOrder() {
   const name    = document.getElementById('staffName').value.trim();
   const urgency = document.getElementById('urgencyLevel').value;
   const notes   = document.getElementById('orderNotes').value.trim();
 
-  if (!name)              { showToast('⚠️ Please enter your name first!'); return; }
+  if (!name)                  { showToast('⚠️ Please enter your name first!'); return; }
   if (orderList.length === 0) { showToast('⚠️ Add items before submitting!'); return; }
 
-  // Disable button to prevent double-submit
   const btn = document.querySelector('.submit-btn');
   btn.textContent = 'Submitting…';
   btn.disabled = true;
 
-  // Build items summary grouped by vendor
-  const byVendor = {};
-  orderList.forEach(o => {
-    const v = o.item.vendor.split('/')[0].trim();
-    if (!byVendor[v]) byVendor[v] = [];
-    byVendor[v].push(`${o.item.name} ×${o.qty}`);
-  });
-  const itemsSummary = Object.entries(byVendor)
-    .map(([v, items]) => `[${v}]\n` + items.join('\n'))
-    .join('\n\n');
-
-  const urgencyLabel = { normal: 'Normal', high: 'High', urgent: 'Urgent' }[urgency] || 'Normal';
-  const orderTitle   = `Order — ${name} — ${new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}`;
-
-  const body = {
-    parent: { database_id: NOTION_DB_ID },
-    properties: {
-      'Name':           { title:  [{ text: { content: orderTitle } }] },
-      'Staff Name':     { rich_text: [{ text: { content: name } }] },
-      'Items Ordered':  { rich_text: [{ text: { content: itemsSummary } }] },
-      'Urgency':        { select: { name: urgencyLabel } },
-      'Notes':          { rich_text: [{ text: { content: notes || '' } }] },
-      'Date Submitted': { date: { start: new Date().toISOString().split('T')[0] } },
-      'Status':         { select: { name: 'New' } },
-    }
-  };
-
   try {
-    // Call Notion API directly (GitHub Pages → Notion requires a CORS proxy)
+    // Build items summary grouped by vendor
+    const byVendor = {};
+    orderList.forEach(o => {
+      const v = o.item.vendor.split('/')[0].trim();
+      if (!byVendor[v]) byVendor[v] = [];
+      byVendor[v].push(`${o.item.name} ×${o.qty}`);
+    });
+    const itemsSummary = Object.entries(byVendor)
+      .map(([v, items]) => `[${v}]\n` + items.join('\n'))
+      .join('\n\n');
+
+    const urgencyLabel = { normal: 'Normal', high: 'High', urgent: 'Urgent' }[urgency] || 'Normal';
+    const orderTitle   = `Order — ${name} — ${new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}`;
+
+    // Get data_source_id first (required by new Notion API)
+    btn.textContent = 'Connecting to Notion…';
+    const dataSourceId = await getDataSourceId();
+
+    // Create the page using data_source_id instead of database_id
+    const body = {
+      parent: { type: 'data_source_id', data_source_id: dataSourceId },
+      properties: {
+        'Name':           { title:      [{ text: { content: orderTitle } }] },
+        'Staff Name':     { rich_text:  [{ text: { content: name } }] },
+        'Items Ordered':  { rich_text:  [{ text: { content: itemsSummary } }] },
+        'Urgency':        { select:     { name: urgencyLabel } },
+        'Notes':          { rich_text:  [{ text: { content: notes || '' } }] },
+        'Date Submitted': { date:       { start: new Date().toISOString().split('T')[0] } },
+        'Status':         { select:     { name: 'New' } },
+      }
+    };
+
+    btn.textContent = 'Sending order…';
     const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.notion.com/v1/pages'), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${NOTION_TOKEN}`,
-        'Content-Type':  'application/json',
-        'Notion-Version': '2022-06-28',
+        'Authorization':  `Bearer ${NOTION_TOKEN}`,
+        'Content-Type':   'application/json',
+        'Notion-Version': '2025-09-03',
       },
       body: JSON.stringify(body)
     });
@@ -1011,7 +1032,6 @@ async function submitOrder() {
 
     if (res.ok && data.id) {
       showToast(`✅ Order sent to Notion! ${orderList.length} item(s) submitted.`);
-      // Reset everything
       orderList = [];
       updateCartUI();
       renderOrderPanel();
@@ -1021,11 +1041,11 @@ async function submitOrder() {
       document.getElementById('orderNotes').value = '';
     } else {
       console.error('Notion error:', data);
-      showToast('❌ Notion error: ' + (data.message || 'Check console for details'));
+      showToast('❌ Notion error: ' + (data.message || 'Check browser console for details'));
     }
   } catch (err) {
-    console.error('Network error:', err);
-    showToast('❌ Could not reach Notion. Check your internet connection.');
+    console.error('Error:', err);
+    showToast('❌ ' + (err.message || 'Could not reach Notion. Check your connection.'));
   } finally {
     btn.textContent = 'Submit Order Request →';
     btn.disabled = false;

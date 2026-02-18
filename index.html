@@ -949,30 +949,87 @@ function setFilter(filter, btn) {
   renderItems();
 }
 
-function submitOrder() {
-  const name = document.getElementById('staffName').value.trim();
+// ── Notion config ──────────────────────────────────────────
+const NOTION_TOKEN = 'ntn_g66139938652WUgauVzm3r4SPqYo0vybmZmJWtZE5sw1bl';
+const NOTION_DB_ID = '30b5346a5d2e80f585b4000c694e25d5';
+const NOTION_PROXY  = 'https://notion-proxy.vercel.app/api/notion'; // CORS proxy
+// ───────────────────────────────────────────────────────────
+
+async function submitOrder() {
+  const name    = document.getElementById('staffName').value.trim();
   const urgency = document.getElementById('urgencyLevel').value;
-  const notes = document.getElementById('orderNotes').value.trim();
-  if (!name) { showToast('Please enter your name first!'); return; }
-  if (orderList.length === 0) { showToast('Add items before submitting!'); return; }
+  const notes   = document.getElementById('orderNotes').value.trim();
 
-  // Build summary output (in production, this would POST to Notion API or webhook)
-  const summary = orderList.map(o => `${o.item.name} (×${o.qty}) - ${o.item.vendor}`).join('\n');
-  const exportText = `ORDER REQUEST\n====================\nStaff: ${name}\nUrgency: ${urgency.toUpperCase()}\nDate: ${new Date().toLocaleDateString()}\nNotes: ${notes || 'None'}\n\nITEMS:\n${summary}`;
-  
-  // Copy to clipboard for easy paste into Notion
-  navigator.clipboard.writeText(exportText).catch(() => {});
+  if (!name)              { showToast('⚠️ Please enter your name first!'); return; }
+  if (orderList.length === 0) { showToast('⚠️ Add items before submitting!'); return; }
 
-  showToast(`✅ Order submitted! ${orderList.length} items across ${[...new Set(orderList.map(o=>o.item.vendor.split('/')[0].trim()))].length} vendor(s)`);
-  
-  // Reset
-  orderList = [];
-  updateCartUI();
-  renderOrderPanel();
-  renderItems();
-  togglePanel();
-  document.getElementById('staffName').value = '';
-  document.getElementById('orderNotes').value = '';
+  // Disable button to prevent double-submit
+  const btn = document.querySelector('.submit-btn');
+  btn.textContent = 'Submitting…';
+  btn.disabled = true;
+
+  // Build items summary grouped by vendor
+  const byVendor = {};
+  orderList.forEach(o => {
+    const v = o.item.vendor.split('/')[0].trim();
+    if (!byVendor[v]) byVendor[v] = [];
+    byVendor[v].push(`${o.item.name} ×${o.qty}`);
+  });
+  const itemsSummary = Object.entries(byVendor)
+    .map(([v, items]) => `[${v}]\n` + items.join('\n'))
+    .join('\n\n');
+
+  const urgencyLabel = { normal: 'Normal', high: 'High', urgent: 'Urgent' }[urgency] || 'Normal';
+  const orderTitle   = `Order — ${name} — ${new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}`;
+
+  const body = {
+    parent: { database_id: NOTION_DB_ID },
+    properties: {
+      'Name':           { title:  [{ text: { content: orderTitle } }] },
+      'Staff Name':     { rich_text: [{ text: { content: name } }] },
+      'Items Ordered':  { rich_text: [{ text: { content: itemsSummary } }] },
+      'Urgency':        { select: { name: urgencyLabel } },
+      'Notes':          { rich_text: [{ text: { content: notes || '' } }] },
+      'Date Submitted': { date: { start: new Date().toISOString().split('T')[0] } },
+      'Status':         { select: { name: 'New' } },
+    }
+  };
+
+  try {
+    // Call Notion API directly (GitHub Pages → Notion requires a CORS proxy)
+    const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.notion.com/v1/pages'), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${NOTION_TOKEN}`,
+        'Content-Type':  'application/json',
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.id) {
+      showToast(`✅ Order sent to Notion! ${orderList.length} item(s) submitted.`);
+      // Reset everything
+      orderList = [];
+      updateCartUI();
+      renderOrderPanel();
+      renderItems();
+      togglePanel();
+      document.getElementById('staffName').value  = '';
+      document.getElementById('orderNotes').value = '';
+    } else {
+      console.error('Notion error:', data);
+      showToast('❌ Notion error: ' + (data.message || 'Check console for details'));
+    }
+  } catch (err) {
+    console.error('Network error:', err);
+    showToast('❌ Could not reach Notion. Check your internet connection.');
+  } finally {
+    btn.textContent = 'Submit Order Request →';
+    btn.disabled = false;
+  }
 }
 
 function showToast(msg) {

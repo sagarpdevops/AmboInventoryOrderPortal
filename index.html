@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ambo Inventory Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fff9f0;
+    --card: #ffffff;
+    --accent: #c8541a;
+    --accent2: #2d5a3d;
+    --text: #1a1410;
+    --muted: #8a7968;
+    --border: #e2d9cc;
+    --tag-pkg: #c8541a;
+    --tag-food: #2d5a3d;
+    --tag-ref: #1a6b8a;
+    --tag-frz: #5a3d7a;
+    --tag-wh: #8a6520;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--text);
+    color: var(--bg);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.2);
+  }
+  header .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.6rem;
+    letter-spacing: -0.5px;
+  }
+  header .logo span { color: #e8a87c; }
+  header .subtitle { font-size: 0.78rem; opacity: 0.55; margin-top: 2px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .cart-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .cart-btn:hover { background: #a8430f; transform: translateY(-1px); }
+  .cart-count {
+    background: #fff;
+    color: var(--accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  /* LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    overflow-y: auto;
+  }
+  .sidebar h3 {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .filter-group { margin-bottom: 28px; }
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    color: var(--text);
+    text-align: left;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .filter-btn:hover { background: var(--border); }
+  .filter-btn.active { background: var(--text); color: white; font-weight: 500; }
+  .filter-btn .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .filter-btn .count {
+    margin-left: auto;
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+
+  /* MAIN */
+  main { padding: 32px; }
+
+  .page-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .page-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+
+  /* SEARCH */
+  .search-bar {
+    position: relative;
+    margin-bottom: 24px;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 14px 20px 14px 48px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar .icon {
+    position: absolute;
+    left: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 1.1rem;
+  }
+  .search-bar input::placeholder { color: var(--muted); }
+
+  /* RESULTS COUNT */
+  .results-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  /* ITEM GRID */
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .item-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .item-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(200,84,26,0.1); transform: translateY(-2px); }
+
+  .item-card .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+  .tag-packaging { background: #fde8de; color: var(--tag-pkg); }
+  .tag-refrigerated { background: #d8eef5; color: var(--tag-ref); }
+  .tag-frozen { background: #ede0f5; color: var(--tag-frz); }
+  .tag-warehouse { background: #f5ead5; color: var(--tag-wh); }
+  .tag-supplies { background: #d5f5e3; color: var(--tag-food); }
+
+  .item-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .item-vendor {
+    font-size: 0.78rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .vendor-badge {
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.72rem;
+  }
+
+  .item-price {
+    font-size: 0.82rem;
+    color: var(--accent2);
+    font-weight: 500;
+  }
+
+  .add-to-order {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .qty-control {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .qty-control button {
+    width: 28px; height: 28px;
+    border: none;
+    background: var(--bg);
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--text);
+    transition: background 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .qty-control button:hover { background: var(--border); }
+  .qty-control input {
+    width: 36px; height: 28px;
+    border: none;
+    text-align: center;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    background: white;
+    color: var(--text);
+    outline: none;
+  }
+  .add-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--text);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.82rem;
+    transition: all 0.15s;
+  }
+  .add-btn:hover { background: var(--accent); }
+  .add-btn.added { background: var(--accent2); }
+
+  /* ORDER PANEL */
+  .order-panel {
+    position: fixed;
+    right: -480px;
+    top: 0;
+    width: 460px;
+    height: 100vh;
+    background: var(--card);
+    box-shadow: -4px 0 40px rgba(0,0,0,0.15);
+    z-index: 200;
+    transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    flex-direction: column;
+  }
+  .order-panel.open { right: 0; }
+  .panel-header {
+    background: var(--text);
+    color: white;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+  }
+  .panel-header .close-btn {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .panel-header .close-btn:hover { background: rgba(255,255,255,0.25); }
+
+  .staff-form {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+  }
+  .staff-form input, .staff-form select {
+    flex: 1;
+    padding: 9px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    background: var(--bg);
+    outline: none;
+    color: var(--text);
+  }
+  .staff-form input:focus, .staff-form select:focus { border-color: var(--accent); }
+
+  .order-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+  .order-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .order-item:last-child { border-bottom: none; }
+  .order-item-info { flex: 1; }
+  .order-item-name { font-weight: 600; font-size: 0.9rem; }
+  .order-item-meta { font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
+  .order-item-qty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .order-qty-badge {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.15s;
+    padding: 2px;
+  }
+  .remove-btn:hover { color: #c0392b; }
+
+  .order-notes {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+  .order-notes textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem;
+    resize: none;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    height: 70px;
+  }
+  .order-notes textarea:focus { border-color: var(--accent); }
+
+  .panel-footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--border);
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .submit-btn:hover { background: #a8430f; transform: translateY(-1px); }
+  .empty-order {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-order .icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-order p { font-size: 0.9rem; }
+
+  /* OVERLAY */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 150;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .overlay.show { opacity: 1; pointer-events: all; }
+
+  /* SUCCESS TOAST */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--accent2);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    z-index: 999;
+    transition: transform 0.3s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* NOTION GUIDE */
+  .notion-guide {
+    background: #f0f8ff;
+    border: 1.5px solid #b8d4e8;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+  }
+  .notion-guide h3 {
+    font-size: 0.75rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #1a6b8a;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .notion-guide .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .notion-step {
+    background: white;
+    border-radius: 8px;
+    padding: 12px 14px;
+    border: 1px solid #d0e8f5;
+  }
+  .notion-step .num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    color: #1a6b8a;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .notion-step .label { font-size: 0.82rem; font-weight: 600; margin-bottom: 3px; }
+  .notion-step .desc { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+
+  .no-results {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+  }
+  .no-results .icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+  .priority-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+  .p-high { background: #e74c3c; }
+  .p-med { background: #f39c12; }
+  .p-low { background: #27ae60; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Ambo <span>Inventory</span></div>
+    <div class="subtitle">Order Request Portal</div>
+  </div>
+  <div class="header-right">
+    <button class="cart-btn" onclick="togglePanel()">
+      🛒 Order List
+      <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="filter-group">
+      <h3>View All</h3>
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">
+        <span class="dot" style="background:#888"></span> All Items
+        <span class="count" id="cnt-all">0</span>
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <h3>Packaging & Supplies</h3>
+      <button class="filter-btn" data-filter="Packaging" onclick="setFilter('Packaging', this)">
+        <span class="dot" style="background:var(--tag-pkg)"></span> Packaging
+        <span class="count" id="cnt-Packaging">0</span>
+      </button>
+      <button class="filter-btn" data-filter="Supplies" onclick="setFilter('Supplies', this)">
+        <span class="dot" style="background:var(--tag-food)"></span> Supplies
+        <span class="count" id="cnt-Supplies">0</span>
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <h3>Food & Ingredients</h3>
+      <button class="filter-btn" data-filter="Refridgerated" onclick="setFilter('Refridgerated', this)">
+        <span class="dot" style="background:var(--tag-ref)"></span> Refrigerated
+        <span class="count" id="cnt-Refridgerated">0</span>
+      </button>
+      <button class="filter-btn" data-filter="Frozen" onclick="setFilter('Frozen', this)">
+        <span class="dot" style="background:var(--tag-frz)"></span> Frozen
+        <span class="count" id="cnt-Frozen">0</span>
+      </button>
+      <button class="filter-btn" data-filter="Warehouse" onclick="setFilter('Warehouse', this)">
+        <span class="dot" style="background:var(--tag-wh)"></span> Warehouse / Dry
+        <span class="count" id="cnt-Warehouse">0</span>
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <h3>Vendor</h3>
+      <button class="filter-btn" data-filter="vendor-webstaurant" onclick="setFilter('vendor-webstaurant', this)">
+        <span class="dot" style="background:#3498db"></span> Webstaurant
+      </button>
+      <button class="filter-btn" data-filter="vendor-restaurantdepot" onclick="setFilter('vendor-restaurantdepot', this)">
+        <span class="dot" style="background:#e67e22"></span> Restaurant Depot
+      </button>
+      <button class="filter-btn" data-filter="vendor-sardar" onclick="setFilter('vendor-sardar', this)">
+        <span class="dot" style="background:#9b59b6"></span> Sardar
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <h1 class="page-title">Order Request</h1>
+    <p class="page-desc">Search for items, set quantities, and add them to your order list. Items are sourced from your master inventory.</p>
+
+    <div class="notion-guide">
+      <h3>📋 Notion Setup Blueprint</h3>
+      <div class="steps">
+        <div class="notion-step">
+          <div class="num">01</div>
+          <div class="label">Master Item List DB</div>
+          <div class="desc">Import MasterInventory.csv + RestaurantDepot.csv. Add "Preferred Vendor" select field.</div>
+        </div>
+        <div class="notion-step">
+          <div class="num">02</div>
+          <div class="label">Purchase Request DB</div>
+          <div class="desc">Fields: Staff Name, Date, Status (Draft/Submitted/Approved/Ordered/Received), Notes.</div>
+        </div>
+        <div class="notion-step">
+          <div class="num">03</div>
+          <div class="label">Order Line Items DB</div>
+          <div class="desc">Relation to both Master Item List and Purchase Request. Fields: Qty, Unit, Urgency.</div>
+        </div>
+        <div class="notion-step">
+          <div class="num">04</div>
+          <div class="label">Notion Form</div>
+          <div class="desc">Staff fill a form linked to Purchase Request. Relation field lets them search & pick items.</div>
+        </div>
+        <div class="notion-step">
+          <div class="num">05</div>
+          <div class="label">Manager View</div>
+          <div class="desc">Board view grouped by Status. Filter by vendor to generate per-vendor order lists.</div>
+        </div>
+        <div class="notion-step">
+          <div class="num">06</div>
+          <div class="label">Vendor Views</div>
+          <div class="desc">Create filtered views per vendor (Webstaurant, Restaurant Depot, Sardar) for easy ordering.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-bar">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search items by name, category, or description..." oninput="renderItems()" autocomplete="off">
+    </div>
+
+    <div class="results-meta">
+      <span id="resultCount">Loading...</span>
+      <span style="font-size:0.78rem;">Click + Add to add items to your order</span>
+    </div>
+
+    <div class="item-grid" id="itemGrid"></div>
+  </main>
+</div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="togglePanel()"></div>
+
+<!-- ORDER PANEL -->
+<div class="order-panel" id="orderPanel">
+  <div class="panel-header">
+    <h2>📋 Your Order List</h2>
+    <button class="close-btn" onclick="togglePanel()">✕</button>
+  </div>
+  <div class="staff-form">
+    <input type="text" id="staffName" placeholder="Your name..." />
+    <select id="urgencyLevel">
+      <option value="normal">Normal Priority</option>
+      <option value="high">🔴 High Priority</option>
+      <option value="urgent">🚨 Urgent</option>
+    </select>
+  </div>
+  <div class="order-items" id="orderItems">
+    <div class="empty-order">
+      <div class="icon">🛒</div>
+      <p>No items yet.<br>Search and add items to build your order.</p>
+    </div>
+  </div>
+  <div class="order-notes">
+    <textarea id="orderNotes" placeholder="Additional notes for this order (optional)..."></textarea>
+  </div>
+  <div class="panel-footer">
+    <button class="submit-btn" onclick="submitOrder()">Submit Order Request →</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA - Combined from MasterInventory.csv + RestaurantDepot.csv
+// ============================================================
+const allItems = [
+  // --- PACKAGING (Webstaurant) ---
+  { name: "Round Bowl 24–32 oz", sku: "1WP", category: "Packaging", vendor: "Webstaurant", price: "0.42 ea / $124.99 case", caseQty: 300, priority: null },
+  { name: "Alternate Bowl Lid 24–32 oz", sku: "2WP", category: "Packaging", vendor: "Webstaurant", price: "0.33 ea / $119.99 case", caseQty: 300, priority: null },
+  { name: "3 Compartment Plate", sku: "3WP", category: "Packaging", vendor: "Webstaurant", price: "0.35 ea / $138.97 case", caseQty: 400, priority: null },
+  { name: "3 Compartment Plate Lid", sku: "4WP", category: "Packaging", vendor: "Webstaurant", price: "0.23 ea / $98.49 case", caseQty: 400, priority: null },
+  { name: "0 Compartment Plate", sku: "5WP", category: "Packaging", vendor: "Webstaurant", price: "0.34 ea / $137.35 case", caseQty: 400, priority: null },
+  { name: "2 oz Compostable Clear Lid", sku: "5WP", category: "Packaging", vendor: "Webstaurant", price: "0.02 ea / $35.99 case", caseQty: 2010, priority: null },
+  { name: "12 oz Cup", sku: "6WP", category: "Packaging", vendor: "Webstaurant", price: "0.13 ea / $65.52 case", caseQty: 500, priority: null },
+  { name: "16 oz Cup", sku: "7WP", category: "Packaging", vendor: "Webstaurant", price: "0.15 ea / $75.49 case", caseQty: 500, priority: null },
+  { name: "12 oz & 16 oz Cup Lid", sku: "8WP", category: "Packaging", vendor: "Webstaurant", price: "0.15 ea / $76.30 case", caseQty: 500, priority: null },
+  { name: "8 oz Clear Cup/Lid Combo", sku: "9WP", category: "Packaging", vendor: "Webstaurant/Sardar", price: "0.11 ea / $25.99 (Webstaurant) | $0.08 ea (Sardar)", caseQty: 240, priority: null },
+  { name: "8 oz Chai Lid", sku: "11WP", category: "Packaging", vendor: "Webstaurant", price: "0.06 ea / $55.99 case", caseQty: 1000, priority: null },
+  { name: "8 oz Chai Cup", sku: "12WP", category: "Packaging", vendor: "Webstaurant", price: "0.04 ea / $36.99 case", caseQty: 1000, priority: null },
+  { name: "Paper Bag with Handle", sku: "13WP", category: "Packaging", vendor: "Webstaurant/Sardar", price: "0.17 ea / $41.99 (Webstaurant) | $0.092 ea (Sardar)", caseQty: 250, priority: null },
+  { name: "Full Aluminum Pan", sku: "14WP", category: "Packaging", vendor: "Webstaurant/Sardar", price: "$1 ea / $49.99 case (Webstaurant) | $44 (Sardar)", caseQty: 50, priority: null },
+  { name: "1/3 Aluminum Pan", sku: "15W", category: "Packaging", vendor: "Webstaurant", price: "0.40 ea / $39.99 case", caseQty: 100, priority: null },
+  { name: "1/3 Aluminum Pan Lid", sku: "16WC", category: "Packaging", vendor: "Webstaurant", price: "0.37 ea / $36.99 case", caseQty: 100, priority: null },
+  { name: "Catering Tong", sku: "17WC", category: "Packaging", vendor: "Webstaurant", price: "0.73 ea / $17.49 case", caseQty: 24, priority: null },
+  { name: "Catering Spoon", sku: "18WC", category: "Packaging", vendor: "Webstaurant", price: "0.26 ea / $18.99 case", caseQty: 72, priority: null },
+  // --- SUPPLIES ---
+  { name: "Gloves (Blue Hybrid Powder-Free)", sku: "10WS", category: "Supplies", vendor: "Webstaurant/Sardar", price: "0.03 ea / $32.49 (Webstaurant) | $0.015 ea (Sardar)", caseQty: 1000, priority: null },
+  // --- REFRIGERATED (Restaurant Depot) ---
+  { name: "Shred Cabbage 4×5 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 6, toOrder: 2 },
+  { name: "Peeled Garlic 6×5 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 6, toOrder: 1 },
+  { name: "Green Onion 4×4 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 6, toOrder: 1 },
+  { name: "Cilantro Washed 4×1 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 6, toOrder: 1 },
+  { name: "Beef Ground 10 lb Chub (80/20)", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 6 },
+  { name: "Chicken Boneless Skinless Thighs Halal 40 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 4, toOrder: 4 },
+  { name: "Boiled Eggs 25 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 5, toOrder: 1 },
+  { name: "Egg Carton 2 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 5 },
+  { name: "Greek Yogurt 6×2 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 5, toOrder: 4 },
+  { name: "Butter Salted 36×1 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 4, toOrder: 2 },
+  { name: "Paneer 4×5 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 4, toOrder: 2 },
+  { name: "Dahi Yogurt 4×5 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 3 },
+  { name: "Milk 9×2 Quart", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 3, toOrder: 1 },
+  { name: "Tofu", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Cucumber", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 1 },
+  { name: "Romaine 6 each / 7 pack", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 1 },
+  { name: "Baby Arugula 3 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Baby Spinach 4 lb", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Chicken Breast", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Milk 1 Gallon Case", sku: "", category: "Refridgerated", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  // --- FROZEN ---
+  { name: "Lamb Ground 5×2 lb", sku: "", category: "Frozen", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 5 },
+  { name: "Shrimp 31-40 White Peeled & Deveined", sku: "", category: "Frozen", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 10, toOrder: 3 },
+  { name: "Cut Goat Cubes Halal 15 lb", sku: "", category: "Frozen", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 5 },
+  // --- WAREHOUSE/DRY ---
+  { name: "Poland Spring Water Case", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 1 },
+  { name: "Morton Iodized Salt Bag", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 2, toOrder: 2 },
+  { name: "Domino Cane Sugar 25 lb", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 2 },
+  { name: "Domino Light Brown Sugar 12×2 lb", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 2 },
+  { name: "Hunts Tomato Ketchup", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 2 },
+  { name: "Hellmanns Extra Heavy Mayo", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 2 },
+  { name: "Canola Oil 35 lb", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: 1, toOrder: 1 },
+  { name: "Evaporated Milk 24×12 oz", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Vita Coco 330 ml", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 3 },
+  { name: "Red Onions 25 lb Bag", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 4 },
+  { name: "Lime Juice Real Lime 4 Gal Case", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Full Pans", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 2 },
+  { name: "Full Pan Lids", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 2 },
+  { name: "Extra Virgin Olive Oil", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Clabber Girl Corn Starch 3 lb", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Potato Harvest Select 50 lb Case", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null, toOrder: 1 },
+  { name: "Coco Powder Extra Brute Cacao Barry 2.2 kg", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+  { name: "Pink Soap for Dishes 1 Gallon Case", sku: "", category: "Warehouse", vendor: "Restaurant Depot", price: "", caseQty: null, priority: null },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentFilter = 'all';
+let orderList = [];
+let quantities = {};
+
+// Init quantities
+allItems.forEach((item, i) => { quantities[i] = 1; });
+
+// Count per category
+function getCounts() {
+  const counts = {};
+  allItems.forEach(item => {
+    counts[item.category] = (counts[item.category] || 0) + 1;
+  });
+  counts.all = allItems.length;
+  return counts;
+}
+
+function updateCounts() {
+  const counts = getCounts();
+  document.getElementById('cnt-all').textContent = counts.all || 0;
+  ['Packaging','Supplies','Refridgerated','Frozen','Warehouse'].forEach(cat => {
+    const el = document.getElementById('cnt-' + cat);
+    if (el) el.textContent = counts[cat] || 0;
+  });
+}
+
+function tagClass(cat) {
+  const map = {
+    'Packaging': 'tag-packaging',
+    'Supplies': 'tag-supplies',
+    'Refridgerated': 'tag-refrigerated',
+    'Frozen': 'tag-frozen',
+    'Warehouse': 'tag-warehouse',
+  };
+  return map[cat] || 'tag-packaging';
+}
+
+function tagLabel(cat) {
+  if (cat === 'Refridgerated') return '❄️ Refrigerated';
+  if (cat === 'Frozen') return '🧊 Frozen';
+  if (cat === 'Warehouse') return '📦 Dry / Warehouse';
+  return cat;
+}
+
+function priorityBadge(p) {
+  if (!p) return '';
+  if (p >= 8) return '<span class="priority-dot p-high"></span>High Priority';
+  if (p >= 4) return '<span class="priority-dot p-med"></span>Medium Priority';
+  return '<span class="priority-dot p-low"></span>Low Priority';
+}
+
+function getFilteredItems() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  return allItems.map((item, i) => ({...item, idx: i})).filter(item => {
+    // Filter by category
+    if (currentFilter === 'vendor-webstaurant' && !item.vendor.includes('Webstaurant')) return false;
+    if (currentFilter === 'vendor-restaurantdepot' && !item.vendor.includes('Restaurant Depot')) return false;
+    if (currentFilter === 'vendor-sardar' && !item.vendor.includes('Sardar')) return false;
+    if (!['all','vendor-webstaurant','vendor-restaurantdepot','vendor-sardar'].includes(currentFilter) && item.category !== currentFilter) return false;
+    // Search
+    if (q && !item.name.toLowerCase().includes(q) && !item.category.toLowerCase().includes(q) && !(item.sku||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderItems() {
+  const items = getFilteredItems();
+  const grid = document.getElementById('itemGrid');
+  document.getElementById('resultCount').textContent = `${items.length} item${items.length !== 1 ? 's' : ''} found`;
+
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="no-results"><div class="icon">🔍</div><p>No items match your search.<br>Try a different keyword.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    const inOrder = orderList.find(o => o.idx === item.idx);
+    const qty = quantities[item.idx] || 1;
+    return `
+    <div class="item-card" id="card-${item.idx}">
+      <span class="tag ${tagClass(item.category)}">${tagLabel(item.category)}</span>
+      <div class="item-name">${item.name}</div>
+      <div class="item-vendor">
+        ${item.vendor.split('/').map(v => `<span class="vendor-badge">${v.trim()}</span>`).join('')}
+      </div>
+      ${item.price ? `<div class="item-price">💰 ${item.price}</div>` : ''}
+      ${item.caseQty ? `<div style="font-size:0.75rem;color:var(--muted)">Case: ${item.caseQty} units</div>` : ''}
+      ${item.priority ? `<div style="font-size:0.75rem;color:var(--muted)">${priorityBadge(item.priority)}</div>` : ''}
+      ${item.toOrder ? `<div style="font-size:0.75rem;color:var(--accent);font-weight:600">⚡ Suggested qty: ${item.toOrder}</div>` : ''}
+      <div class="add-to-order">
+        <div class="qty-control">
+          <button onclick="changeQty(${item.idx},-1)">−</button>
+          <input type="number" min="1" value="${qty}" id="qty-${item.idx}" onchange="setQty(${item.idx}, this.value)">
+          <button onclick="changeQty(${item.idx},1)">+</button>
+        </div>
+        <button class="add-btn ${inOrder ? 'added' : ''}" id="addbtn-${item.idx}" onclick="addToOrder(${item.idx})">
+          ${inOrder ? '✓ Added' : '+ Add'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function changeQty(idx, delta) {
+  quantities[idx] = Math.max(1, (quantities[idx] || 1) + delta);
+  const input = document.getElementById('qty-' + idx);
+  if (input) input.value = quantities[idx];
+}
+
+function setQty(idx, val) {
+  quantities[idx] = Math.max(1, parseInt(val) || 1);
+}
+
+function addToOrder(idx) {
+  const item = allItems[idx];
+  const qty = parseInt(document.getElementById('qty-' + idx)?.value || quantities[idx] || 1);
+  const existing = orderList.findIndex(o => o.idx === idx);
+  if (existing >= 0) {
+    orderList[existing].qty = qty;
+  } else {
+    orderList.push({ idx, item, qty });
+  }
+  updateCartUI();
+  renderOrderPanel();
+  const btn = document.getElementById('addbtn-' + idx);
+  if (btn) { btn.textContent = '✓ Added'; btn.classList.add('added'); }
+  showToast(`"${item.name}" added to order list`);
+}
+
+function removeFromOrder(idx) {
+  orderList = orderList.filter(o => o.idx !== idx);
+  updateCartUI();
+  renderOrderPanel();
+  const btn = document.getElementById('addbtn-' + idx);
+  if (btn) { btn.textContent = '+ Add'; btn.classList.remove('added'); }
+}
+
+function updateCartUI() {
+  document.getElementById('cartCount').textContent = orderList.length;
+}
+
+function renderOrderPanel() {
+  const container = document.getElementById('orderItems');
+  if (orderList.length === 0) {
+    container.innerHTML = `<div class="empty-order"><div class="icon">🛒</div><p>No items yet.<br>Search and add items to build your order.</p></div>`;
+    return;
+  }
+
+  // Group by vendor
+  const byVendor = {};
+  orderList.forEach(o => {
+    const vendor = o.item.vendor.split('/')[0].trim();
+    if (!byVendor[vendor]) byVendor[vendor] = [];
+    byVendor[vendor].push(o);
+  });
+
+  container.innerHTML = Object.entries(byVendor).map(([vendor, items]) => `
+    <div style="margin-bottom:8px">
+      <div style="font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:10px 0 6px;font-weight:600;border-bottom:1px solid var(--border)">${vendor}</div>
+      ${items.map(o => `
+        <div class="order-item">
+          <div class="order-item-info">
+            <div class="order-item-name">${o.item.name}</div>
+            <div class="order-item-meta">${o.item.category}${o.item.price ? ' · ' + o.item.price : ''}</div>
+          </div>
+          <div class="order-item-qty">
+            <span class="order-qty-badge">×${o.qty}</span>
+            <button class="remove-btn" onclick="removeFromOrder(${o.idx})">🗑</button>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function togglePanel() {
+  const panel = document.getElementById('orderPanel');
+  const overlay = document.getElementById('overlay');
+  panel.classList.toggle('open');
+  overlay.classList.toggle('show');
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderItems();
+}
+
+function submitOrder() {
+  const name = document.getElementById('staffName').value.trim();
+  const urgency = document.getElementById('urgencyLevel').value;
+  const notes = document.getElementById('orderNotes').value.trim();
+  if (!name) { showToast('Please enter your name first!'); return; }
+  if (orderList.length === 0) { showToast('Add items before submitting!'); return; }
+
+  // Build summary output (in production, this would POST to Notion API or webhook)
+  const summary = orderList.map(o => `${o.item.name} (×${o.qty}) - ${o.item.vendor}`).join('\n');
+  const exportText = `ORDER REQUEST\n====================\nStaff: ${name}\nUrgency: ${urgency.toUpperCase()}\nDate: ${new Date().toLocaleDateString()}\nNotes: ${notes || 'None'}\n\nITEMS:\n${summary}`;
+  
+  // Copy to clipboard for easy paste into Notion
+  navigator.clipboard.writeText(exportText).catch(() => {});
+
+  showToast(`✅ Order submitted! ${orderList.length} items across ${[...new Set(orderList.map(o=>o.item.vendor.split('/')[0].trim()))].length} vendor(s)`);
+  
+  // Reset
+  orderList = [];
+  updateCartUI();
+  renderOrderPanel();
+  renderItems();
+  togglePanel();
+  document.getElementById('staffName').value = '';
+  document.getElementById('orderNotes').value = '';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// INIT
+updateCounts();
+renderItems();
+</script>
+</body>
+</html>

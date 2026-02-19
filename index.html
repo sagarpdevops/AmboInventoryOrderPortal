@@ -949,28 +949,10 @@ function setFilter(filter, btn) {
   renderItems();
 }
 
-// ── Notion config ──────────────────────────────────────────
-const NOTION_TOKEN = 'ntn_b66139938652xv8d8SthcbEoIEcSmitsLd74k4g5dQ2ca9';
-const NOTION_DB_ID = '30b5346a5d2e8061ba0ad5487c0c1ac1';
-const NOTION_PROXY  = 'https://notion-proxy.vercel.app/api/notion'; // CORS proxy
-// ───────────────────────────────────────────────────────────
+// ── WhatsApp config ─────────────────────────────────────────
 
-async function getDataSourceId() {
-  // Step 1: Fetch the database to get the data_source_id (required by Notion API 2025-09-03)
-  const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(`https://api.notion.com/v1/databases/${NOTION_DB_ID}`), {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${NOTION_TOKEN}`,
-      'Notion-Version': '2025-09-03',
-    }
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Failed to fetch database info');
-  // data_sources is an array; grab the first one
-  const sources = data.data_sources;
-  if (!sources || sources.length === 0) throw new Error('No data sources found on this database');
-  return sources[0].id;
-}
+const WHATSAPP_NUMBER = '12018885740';
+const WHATSAPP_APIKEY = '3340502';
 
 async function submitOrder() {
   const name    = document.getElementById('staffName').value.trim();
@@ -981,57 +963,42 @@ async function submitOrder() {
   if (orderList.length === 0) { showToast('⚠️ Add items before submitting!'); return; }
 
   const btn = document.querySelector('.submit-btn');
-  btn.textContent = 'Submitting…';
+  btn.textContent = 'Sending…';
   btn.disabled = true;
 
   try {
-    // Build items summary grouped by vendor
+    // Build message grouped by vendor
     const byVendor = {};
     orderList.forEach(o => {
       const v = o.item.vendor.split('/')[0].trim();
       if (!byVendor[v]) byVendor[v] = [];
-      byVendor[v].push(`${o.item.name} ×${o.qty}`);
+      byVendor[v].push(`  • ${o.item.name} x${o.qty}`);
     });
-    const itemsSummary = Object.entries(byVendor)
-      .map(([v, items]) => `[${v}]\n` + items.join('\n'))
+
+    const vendorLines = Object.entries(byVendor)
+      .map(([v, items]) => `[${v}]\n${items.join('\n')}`)
       .join('\n\n');
 
-    const urgencyLabel = { normal: 'Normal', high: 'High', urgent: 'Urgent' }[urgency] || 'Normal';
-    const orderTitle   = `Order — ${name} — ${new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}`;
+    const urgencyLabel = { normal: 'Normal', high: '🔴 High', urgent: '🚨 Urgent' }[urgency] || 'Normal';
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    // Get data_source_id first (required by new Notion API)
-    btn.textContent = 'Connecting to Notion…';
-    const dataSourceId = await getDataSourceId();
+    const message = `🛒 NEW ORDER REQUEST\n` +
+      `━━━━━━━━━━━━━━━\n` +
+      `👤 Staff: ${name}\n` +
+      `📅 Date: ${date}\n` +
+      `⚡ Priority: ${urgencyLabel}\n` +
+      `━━━━━━━━━━━━━━━\n` +
+      `${vendorLines}\n` +
+      `━━━━━━━━━━━━━━━\n` +
+      (notes ? `📝 Notes: ${notes}` : '');
 
-    // Create the page using data_source_id instead of database_id
-    const body = {
-      parent: { type: 'data_source_id', data_source_id: dataSourceId },
-      properties: {
-        'Name':           { title:      [{ text: { content: orderTitle } }] },
-        'Staff Name':     { rich_text:  [{ text: { content: name } }] },
-        'Items Ordered':  { rich_text:  [{ text: { content: itemsSummary } }] },
-        'Urgency':        { select:     { name: urgencyLabel } },
-        'Notes':          { rich_text:  [{ text: { content: notes || '' } }] },
-        'Date Submitted': { date:       { start: new Date().toISOString().split('T')[0] } },
-        'Status':         { select:     { name: 'New' } },
-      }
-    };
+    const url = `https://api.callmebot.com/whatsapp.php?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}&apikey=${WHATSAPP_APIKEY}`;
 
-    btn.textContent = 'Sending order…';
-    const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.notion.com/v1/pages'), {
-      method: 'POST',
-      headers: {
-        'Authorization':  `Bearer ${NOTION_TOKEN}`,
-        'Content-Type':   'application/json',
-        'Notion-Version': '2025-09-03',
-      },
-      body: JSON.stringify(body)
-    });
+    const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    const text = await res.text();
 
-    const data = await res.json();
-
-    if (res.ok && data.id) {
-      showToast(`✅ Order sent to Notion! ${orderList.length} item(s) submitted.`);
+    if (res.ok) {
+      showToast(`✅ Order sent to WhatsApp! ${orderList.length} item(s) submitted.`);
       orderList = [];
       updateCartUI();
       renderOrderPanel();
@@ -1040,12 +1007,11 @@ async function submitOrder() {
       document.getElementById('staffName').value  = '';
       document.getElementById('orderNotes').value = '';
     } else {
-      console.error('Notion error:', data);
-      showToast('❌ Notion error: ' + (data.message || 'Check browser console for details'));
+      throw new Error(text);
     }
   } catch (err) {
     console.error('Error:', err);
-    showToast('❌ ' + (err.message || 'Could not reach Notion. Check your connection.'));
+    showToast('❌ Could not send WhatsApp message. Check your connection.');
   } finally {
     btn.textContent = 'Submit Order Request →';
     btn.disabled = false;
